@@ -19,12 +19,44 @@ const algorithms = [
   { id: "radix", name: "Radix Sort", description: "Orders integer values one byte at a time.", best: "O(d(n + k))", average: "O(d(n + k))", worst: "O(d(n + k))", space: "O(n + k)", stability: "Stable · Out-of-place" },
 ];
 
+function createDefaultGradientSource() {
+  const width = 800;
+  const height = 600;
+  const colors = Array.from({ length: 3 }, () =>
+    `#${Math.floor(Math.random() * 0x1000000).toString(16).padStart(6, "0")}`);
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Could not create the default gradient image.");
+  const angle = Math.random() * Math.PI * 2;
+  const halfWidth = Math.cos(angle) * width / 2;
+  const halfHeight = Math.sin(angle) * height / 2;
+  const gradient = context.createLinearGradient(
+    width / 2 - halfWidth,
+    height / 2 - halfHeight,
+    width / 2 + halfWidth,
+    height / 2 + halfHeight,
+  );
+  gradient.addColorStop(0, colors[0]);
+  gradient.addColorStop(0.5, colors[1]);
+  gradient.addColorStop(1, colors[2]);
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, width, height);
+  return {
+    url: canvas.toDataURL("image/png"),
+    width,
+    height,
+    name: "Random gradient",
+  };
+}
+
 const state = {
   mode: "numbers",
   selected: ["bubble", "quick"],
   initial: [8, 3, 6, 1, 9, 2, 5, 4, 7],
   numberInitial: [8, 3, 6, 1, 9, 2, 5, 4, 7],
-  imageSource: null,
+  imageSource: createDefaultGradientSource(),
   imagePuzzle: null,
   imageLoadRequest: 0,
   panels: new Map(),
@@ -71,6 +103,11 @@ const elements = {
   compileOutput: document.querySelector("#compile-output"),
   savedAlgorithms: document.querySelector("#saved-algorithms-list"),
 };
+
+elements.imagePreview.src = state.imageSource.url;
+elements.imagePreviewWrap.hidden = false;
+elements.imageSelectionStatus.textContent =
+  `${state.imageSource.name} · ${state.imageSource.width} × ${state.imageSource.height}`;
 
 const CUSTOM_STORAGE_KEY = "sort.customAlgorithms.v2";
 let codeEditor;
@@ -681,7 +718,7 @@ function setPuzzleMode(mode) {
   setStatus(
     state.imagePuzzle
       ? `Image puzzle ready: ${state.imagePuzzle.rows} × ${state.imagePuzzle.columns}.`
-      : "Upload an image and create a puzzle.",
+      : `${state.imageSource.name} ready. Create a puzzle or upload your own image.`,
     state.imagePuzzle ? "ready" : "",
   );
 }
@@ -764,6 +801,13 @@ function shuffleImagePuzzle() {
   setStatus("Image puzzle shuffled.", "ready");
 }
 
+function clampNumberInput(input, minimum, maximum) {
+  if (input.value === "") return;
+  const value = Number(input.value);
+  if (!Number.isFinite(value)) return;
+  input.value = String(Math.max(minimum, Math.min(maximum, value)));
+}
+
 document.querySelector("#workspace").addEventListener("click", async (event) => {
   const button = event.target.closest("[data-action]");
   if (!button) return;
@@ -812,6 +856,15 @@ elements.imageFile.addEventListener("change", (event) => {
 
 elements.createImagePuzzle.addEventListener("click", createImagePuzzle);
 elements.shuffleImagePuzzle.addEventListener("click", shuffleImagePuzzle);
+
+[
+  { input: elements.size, minimum: 2, maximum: 100 },
+  { input: elements.imageRows, minimum: 2, maximum: 10 },
+  { input: elements.imageColumns, minimum: 2, maximum: 10 },
+].forEach(({ input, minimum, maximum }) => {
+  input.addEventListener("change", () =>
+    clampNumberInput(input, minimum, maximum));
+});
 
 document.querySelector("#shuffle-button").addEventListener("click", () => {
   const size = Number(elements.size.value);

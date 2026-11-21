@@ -62,6 +62,7 @@ h2, h3, p { margin-top: 0; }
 .button:disabled { opacity: .48; cursor: not-allowed; }
 .button-primary { border-color: var(--green); background: var(--green); color: white; }
 .button-primary:hover:not(:disabled) { border-color: var(--green-dark); background: var(--green-dark); }
+.puzzle-controls[hidden] { display: none; }
 .image-controls { margin-top: 10px; }
 .image-source-row, .image-grid-controls { display: flex; align-items: center; gap: 10px; }
 .image-file-control { display: flex; flex: 1; align-items: center; gap: 9px; color: var(--muted); font-size: 11px; }
