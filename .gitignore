@@ -1,3 +1,7 @@
 /build/
 /build-wasm/
-/web/build-wasm/
+/node_modules/
+/web/dist/
+/web/public/build-wasm/
+/web/public/toolchain/
+__pycache__/

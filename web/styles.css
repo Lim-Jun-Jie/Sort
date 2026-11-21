@@ -111,6 +111,37 @@ h2, h3, p { margin-top: 0; }
 .custom-note h2 { font-size: 15px; }
 .custom-note p:last-child { max-width: 600px; margin: 5px 0 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
 .coming-soon { flex: 0 0 auto; border: 1px solid var(--line); border-radius: 20px; padding: 7px 9px; color: var(--muted); font: 9px "DM Mono", monospace; }
+.custom-editor { flex: 1 1 100%; min-width: 0; padding-top: 18px; border-top: 1px solid var(--line); }
+.editor-toolbar, .editor-actions { display: flex; align-items: center; gap: 10px; }
+.editor-toolbar { justify-content: space-between; flex-wrap: wrap; margin-bottom: 9px; }
+.editor-name-label { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 11px; }
+.editor-name-label input { width: min(260px, 55vw); height: 34px; border: 1px solid var(--line); border-radius: 7px; padding: 0 9px; color: var(--ink); background: white; font-size: 12px; }
+.editor-name-label input:focus { outline: 1px solid var(--green); }
+.editor-function-label { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 11px; }
+.editor-function-label input { width: 150px; height: 34px; border: 1px solid var(--line); border-radius: 7px; padding: 0 9px; color: var(--ink); background: white; font: 12px "DM Mono", Consolas, monospace; }
+.editor-function-label input:focus { outline: 1px solid var(--green); }
+.editor-language { color: var(--muted); font: 10px "DM Mono", monospace; }
+#code-editor { overflow: hidden; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
+#code-editor .cm-editor { min-height: 300px; font: 12px/1.5 "DM Mono", Consolas, monospace; }
+#code-editor .cm-editor.cm-focused { outline: 1px solid #9fbea4; }
+#code-editor .cm-scroller { overflow: auto; }
+#code-editor .cm-gutters { border-right: 1px solid var(--line); background: #faf9f4; color: #96988f; }
+.editor-actions { flex-wrap: wrap; margin-top: 10px; }
+.compile-status { color: var(--muted); font-size: 11px; }
+.compile-status.ready { color: var(--green); }
+.compile-status.error { color: #b94a3b; }
+.compile-output { overflow: auto; max-height: 180px; margin: 10px 0 0; border: 1px solid var(--line); border-radius: 8px; padding: 11px; background: #faf9f4; color: #55584f; font: 10px/1.55 "DM Mono", Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+.saved-algorithms { margin-top: 18px; }
+.saved-algorithms .section-label { margin-bottom: 7px; }
+.saved-algorithm { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 11px; }
+.saved-algorithm > div { display: flex; gap: 10px; }
+.saved-action { border: 0; padding: 2px; background: transparent; color: var(--green); font-size: 10px; }
+.saved-action:hover { text-decoration: underline; }
+.saved-empty { margin: 0; color: var(--muted); font-size: 10px; }
+.interface-help { margin-top: 14px; color: var(--muted); font-size: 11px; }
+.interface-help summary { color: var(--green); cursor: pointer; font-weight: 600; }
+.interface-help p { margin: 9px 0 0; line-height: 1.7; }
+.interface-help code { color: var(--ink); font-family: "DM Mono", monospace; }
 footer { display: flex; align-items: center; gap: 20px; min-height: 58px; padding: 0 max(6vw, 24px); border-top: 1px solid var(--line); }
 footer .brand { font-size: 15px; }
 footer a { margin-left: auto; color: var(--muted); text-decoration: none; }
