@@ -3,6 +3,8 @@
 An interactive sorting-algorithm comparison playground. Built-in algorithms
 run in a C++17 core compiled to WebAssembly; the browser replays their
 language-neutral operation traces as animated number tiles.
+Completed algorithms are ranked by playback completion order; algorithms that
+finish on the same playback tick share a rank.
 
 ## Run locally
 

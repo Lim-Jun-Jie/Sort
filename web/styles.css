@@ -68,7 +68,9 @@ h2, h3, p { margin-top: 0; }
 .section-heading > p { margin: 0 0 2px; color: var(--muted); font-size: 11px; }
 .section-heading h2 span { margin-left: 6px; color: var(--muted); font: 11px "DM Mono", monospace; vertical-align: 2px; }
 .workspace { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-.algorithm-panel { overflow: hidden; border: 1px solid var(--line); border-radius: 13px; background: var(--surface); box-shadow: var(--shadow); }
+.algorithm-panel { overflow: hidden; border: 1px solid var(--line); border-radius: 13px; background: var(--surface); box-shadow: var(--shadow); transition: border-color .15s, box-shadow .15s; }
+.algorithm-panel.is-running { border-color: var(--orange); box-shadow: 0 0 0 1px var(--orange), var(--shadow); }
+.algorithm-panel.is-complete { border-color: var(--green); box-shadow: 0 0 0 1px var(--green), var(--shadow); }
 .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 17px 12px; }
 .panel-title-wrap { min-width: 0; }
 .panel-name { overflow: hidden; margin: 0; font-size: 14px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
@@ -84,7 +86,9 @@ h2, h3, p { margin-top: 0; }
 .panel-footer { display: flex; align-items: center; justify-content: space-between; padding: 11px 16px; }
 .stats { display: flex; gap: 13px; color: var(--muted); font: 10px "DM Mono", monospace; }
 .stats strong { color: var(--ink); font-weight: 500; }
-.panel-state { color: var(--green); font: 10px "DM Mono", monospace; }
+.panel-state { max-width: 48%; color: var(--muted); font: 10px "DM Mono", monospace; text-align: right; }
+.is-running .panel-state { color: #a76539; }
+.is-complete .panel-state { color: var(--green); }
 .empty-state { padding: 35px 20px; text-align: center; box-shadow: none; }
 .empty-state[hidden] { display: none; }
 .empty-icon { display: grid; width: 38px; height: 38px; margin: 0 auto 11px; place-items: center; border-radius: 12px; background: var(--green-soft); color: var(--green); font-size: 20px; }
@@ -135,5 +139,7 @@ footer a { margin-left: auto; color: var(--muted); text-decoration: none; }
   main { width: calc(100% - 30px); }
   .library-grid { grid-template-columns: 1fr; }
   .stats { gap: 8px; }
+  .panel-footer { gap: 8px; }
+  .panel-state { max-width: none; }
   footer { gap: 10px; font-size: 10px; }
 }
