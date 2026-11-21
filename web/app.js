@@ -16,6 +16,7 @@ const state = {
   panels: new Map(),
   module: null,
   timer: null,
+  playbackTick: 0,
 };
 
 const elements = {
@@ -66,6 +67,7 @@ function renderLibrary() {
 
 function renderPanel(algorithm) {
   const panel = state.panels.get(algorithm.id);
+  const ranking = getRanking(panel);
   const tiles = panel.values.map((value, index) => {
     const classes = ["tile"];
     if (panel.highlights.includes(index)) classes.push(panel.highlightType);
@@ -75,7 +77,11 @@ function renderPanel(algorithm) {
   const comparisons = panel.comparisons;
   const swaps = panel.swaps;
   const writes = panel.writes;
-  return `<article class="algorithm-panel" data-panel="${algorithm.id}">
+  const panelClass = panel.active ? " is-running" : panel.done ? " is-complete" : "";
+  const panelStatus = ranking
+    ? `${ordinal(ranking.position)}${ranking.tied ? " tie" : " place"} · ${panel.cursor} ops`
+    : panel.active ? "Running" : panel.cursor ? "Paused" : "Ready";
+  return `<article class="algorithm-panel${panelClass}" data-panel="${algorithm.id}">
     <div class="panel-heading">
       <div class="panel-title-wrap"><h3 class="panel-name">${algorithm.name}</h3><p class="panel-complexity">Avg ${algorithm.average} · Space ${algorithm.space}</p></div>
       <div class="panel-actions">
@@ -87,9 +93,30 @@ function renderPanel(algorithm) {
     <div class="tile-board" aria-label="${algorithm.name} tile visualization">${tiles}</div>
     <div class="panel-footer">
       <div class="stats"><span>Compare <strong>${comparisons}</strong></span><span>Swaps <strong>${swaps}</strong></span><span>Writes <strong>${writes}</strong></span></div>
-      <span class="panel-state">${panel.done ? "Complete" : panel.active ? "Running" : panel.cursor ? "Paused" : "Ready"}</span>
+      <span class="panel-state">${panelStatus}</span>
     </div>
   </article>`;
+}
+
+function getRanking(panel) {
+  if (!panel.done || panel.completionTick === null) return null;
+  const completed = [...state.panels.values()].filter(
+    (candidate) => candidate.done && candidate.completionTick !== null,
+  );
+  const earlier = completed.filter(
+    (candidate) => candidate.completionTick < panel.completionTick,
+  ).length;
+  const tied = completed.filter(
+    (candidate) => candidate.completionTick === panel.completionTick,
+  ).length > 1;
+  return { position: earlier + 1, tied };
+}
+
+function ordinal(position) {
+  const suffix = position % 100 >= 11 && position % 100 <= 13
+    ? "th"
+    : ["th", "st", "nd", "rd"][position % 10] || "th";
+  return `${position}${suffix}`;
 }
 
 function renderWorkspace() {
@@ -101,12 +128,21 @@ function renderWorkspace() {
 }
 
 function addAlgorithm(id) {
+  let changed = false;
   if (state.selected.includes(id)) {
     state.selected = state.selected.filter((selected) => selected !== id);
     state.panels.delete(id);
+    changed = true;
   } else if (state.selected.length < 4) {
     state.selected.push(id);
-    state.panels.set(id, newPanel());
+    changed = true;
+  }
+  if (changed) {
+    stopPlayback();
+    state.playbackTick = 0;
+    for (const selected of state.selected) {
+      state.panels.set(selected, newPanel());
+    }
   }
   renderLibrary();
   renderWorkspace();
@@ -125,6 +161,7 @@ function newPanel() {
     highlightType: "comparing",
     active: false,
     done: false,
+    completionTick: null,
   };
 }
 
@@ -157,6 +194,8 @@ function prepareTraces() {
     return false;
   }
   try {
+    stopPlayback();
+    state.playbackTick = 0;
     for (const id of state.selected) {
       const panel = state.panels.get(id);
       panel.trace = makeTrace(id);
@@ -169,6 +208,7 @@ function prepareTraces() {
       panel.highlights = [];
       panel.active = false;
       panel.done = false;
+      panel.completionTick = null;
     }
     return true;
   } catch (error) {
@@ -178,6 +218,7 @@ function prepareTraces() {
 }
 
 function applyOperation(panel) {
+  const wasDone = panel.done;
   const operation = panel.trace[panel.cursor++];
   panel.highlights = [];
   if (operation.type === "COMPARE") {
@@ -206,9 +247,13 @@ function applyOperation(panel) {
     panel.done = true;
     panel.active = false;
   }
+  if (!wasDone && panel.done) {
+    panel.completionTick = state.playbackTick;
+  }
 }
 
 function tick() {
+  state.playbackTick += 1;
   let running = false;
   for (const panel of state.panels.values()) {
     if (panel.active && !panel.done) {
@@ -260,6 +305,7 @@ function updateDataset(values) {
   elements.size.value = values.length;
   for (const [id] of state.panels) state.panels.set(id, newPanel());
   stopPlayback();
+  state.playbackTick = 0;
   renderWorkspace();
 }
 
@@ -276,11 +322,20 @@ document.querySelector("#workspace").addEventListener("click", (event) => {
   if (button.dataset.action === "remove") {
     addAlgorithm(button.dataset.algorithm);
   } else if (button.dataset.action === "step") {
+    if (panel.done && [...state.panels.values()].every((candidate) => candidate.done)) {
+      if (!prepareTraces()) return;
+    }
     if (!panel.trace.length && !prepareTraces()) return;
     panel.active = false;
-    if (!panel.done) applyOperation(panel);
+    if (!panel.done) {
+      state.playbackTick += 1;
+      applyOperation(panel);
+    }
     renderWorkspace();
   } else if (button.dataset.action === "toggle") {
+    if (panel.done && [...state.panels.values()].every((candidate) => candidate.done)) {
+      if (!prepareTraces()) return;
+    }
     if (!panel.trace.length && !prepareTraces()) return;
     panel.active = !panel.active && !panel.done;
     renderWorkspace();
@@ -317,7 +372,11 @@ document.querySelector("#play-button").addEventListener("click", () => {
     setStatus("Add an algorithm before starting a race.", "error");
     return;
   }
-  if (![...state.panels.values()].every((panel) => panel.trace.length) && !prepareTraces()) return;
+  const panels = [...state.panels.values()];
+  if (panels.every((panel) => panel.done) ||
+      panels.some((panel) => panel.trace.length === 0)) {
+    if (!prepareTraces()) return;
+  }
   for (const panel of state.panels.values()) panel.active = !panel.done;
   renderWorkspace();
   ensurePlayback();
@@ -334,7 +393,12 @@ document.querySelector("#step-button").addEventListener("click", () => {
     setStatus("Add an algorithm before stepping.", "error");
     return;
   }
-  if (![...state.panels.values()].every((panel) => panel.trace.length) && !prepareTraces()) return;
+  const panels = [...state.panels.values()];
+  if (panels.every((panel) => panel.done) ||
+      panels.some((panel) => panel.trace.length === 0)) {
+    if (!prepareTraces()) return;
+  }
+  state.playbackTick += 1;
   for (const panel of state.panels.values()) {
     panel.active = false;
     if (!panel.done) applyOperation(panel);
@@ -345,6 +409,7 @@ document.querySelector("#step-button").addEventListener("click", () => {
 
 document.querySelector("#reset-button").addEventListener("click", () => {
   stopPlayback();
+  state.playbackTick = 0;
   for (const [id] of state.panels) state.panels.set(id, newPanel());
   renderWorkspace();
 });
