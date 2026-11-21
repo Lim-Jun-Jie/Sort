@@ -10,22 +10,47 @@
 namespace sorting {
 namespace {
 
+thread_local std::vector<Operation>* active_operations = nullptr;
+
+void record_operation(OperationType type, int first, int second, int value) {
+    if (active_operations == nullptr) {
+        return;
+    }
+    active_operations->push_back({type, first, second, value,
+                                  static_cast<int>(active_operations->size())});
+}
+
+class TraceScope {
+public:
+    explicit TraceScope(std::vector<Operation>& operations)
+        : previous_(active_operations) {
+        active_operations = &operations;
+    }
+
+    ~TraceScope() {
+        active_operations = previous_;
+    }
+
+private:
+    std::vector<Operation>* previous_;
+};
+
 class InstrumentedArray {
 public:
-    explicit InstrumentedArray(const std::vector<int>& input) : values(input) {}
+    explicit InstrumentedArray(std::vector<int> input) : values(std::move(input)) {}
 
     bool less(int first, int second) {
-        record(OperationType::Compare, first, second, values[second]);
+        record_operation(OperationType::Compare, first, second, values[second]);
         return values[first] < values[second];
     }
 
     bool less_than_value(int index, int value) {
-        record(OperationType::Compare, index, -1, value);
+        record_operation(OperationType::Compare, index, -1, value);
         return values[index] < value;
     }
 
     bool greater_than_value(int index, int value) {
-        record(OperationType::Compare, index, -1, value);
+        record_operation(OperationType::Compare, index, -1, value);
         return values[index] > value;
     }
 
@@ -33,17 +58,17 @@ public:
         if (first == second) {
             return;
         }
-        record(OperationType::Swap, first, second, values[second]);
+        record_operation(OperationType::Swap, first, second, values[second]);
         std::swap(values[first], values[second]);
     }
 
     void write(int index, int value) {
         values[index] = value;
-        record(OperationType::Write, index, -1, value);
+        record_operation(OperationType::Write, index, -1, value);
     }
 
     void mark_sorted(int index) {
-        record(OperationType::MarkSorted, index, -1, values[index]);
+        record_operation(OperationType::MarkSorted, index, -1, values[index]);
     }
 
     void mark_range_sorted(int first, int last) {
@@ -52,21 +77,11 @@ public:
         }
     }
 
-    void complete() {
-        record(OperationType::Complete, -1, -1, 0);
-    }
-
     std::vector<int> values;
-    std::vector<Operation> operations;
-
-private:
-    void record(OperationType type, int first, int second, int value) {
-        operations.push_back({type, first, second, value,
-                              static_cast<int>(operations.size())});
-    }
 };
 
-void bubble_sort(InstrumentedArray& array) {
+std::vector<int> bubble_sort(std::vector<int> unsorted) {
+    InstrumentedArray array(std::move(unsorted));
     const int size = static_cast<int>(array.values.size());
     for (int end = size - 1; end > 0; --end) {
         bool changed = false;
@@ -79,15 +94,17 @@ void bubble_sort(InstrumentedArray& array) {
         array.mark_sorted(end);
         if (!changed) {
             array.mark_range_sorted(0, end - 1);
-            return;
+            return std::move(array.values);
         }
     }
     if (size > 0) {
         array.mark_sorted(0);
     }
+    return std::move(array.values);
 }
 
-void selection_sort(InstrumentedArray& array) {
+std::vector<int> selection_sort(std::vector<int> unsorted) {
+    InstrumentedArray array(std::move(unsorted));
     const int size = static_cast<int>(array.values.size());
     for (int index = 0; index < size; ++index) {
         int minimum = index;
@@ -99,9 +116,11 @@ void selection_sort(InstrumentedArray& array) {
         array.swap(index, minimum);
         array.mark_sorted(index);
     }
+    return std::move(array.values);
 }
 
-void insertion_sort(InstrumentedArray& array) {
+std::vector<int> insertion_sort(std::vector<int> unsorted) {
+    InstrumentedArray array(std::move(unsorted));
     const int size = static_cast<int>(array.values.size());
     for (int index = 1; index < size; ++index) {
         const int value = array.values[index];
@@ -113,9 +132,11 @@ void insertion_sort(InstrumentedArray& array) {
         array.write(position, value);
     }
     array.mark_range_sorted(0, size - 1);
+    return std::move(array.values);
 }
 
-void merge_sort(InstrumentedArray& array) {
+std::vector<int> merge_sort(std::vector<int> unsorted) {
+    InstrumentedArray array(std::move(unsorted));
     std::function<void(int, int)> sort = [&](int first, int last) {
         if (last - first < 2) {
             return;
@@ -148,9 +169,11 @@ void merge_sort(InstrumentedArray& array) {
 
     sort(0, static_cast<int>(array.values.size()));
     array.mark_range_sorted(0, static_cast<int>(array.values.size()) - 1);
+    return std::move(array.values);
 }
 
-void quick_sort(InstrumentedArray& array) {
+std::vector<int> quick_sort(std::vector<int> unsorted) {
+    InstrumentedArray array(std::move(unsorted));
     std::function<void(int, int)> sort = [&](int low, int high) {
         if (low >= high) {
             if (low == high) {
@@ -184,9 +207,11 @@ void quick_sort(InstrumentedArray& array) {
 
     sort(0, static_cast<int>(array.values.size()) - 1);
     array.mark_range_sorted(0, static_cast<int>(array.values.size()) - 1);
+    return std::move(array.values);
 }
 
-void heap_sort(InstrumentedArray& array) {
+std::vector<int> heap_sort(std::vector<int> unsorted) {
+    InstrumentedArray array(std::move(unsorted));
     const int size = static_cast<int>(array.values.size());
     auto sift_down = [&](int root, int end, auto&& self) -> void {
         int largest = root;
@@ -215,9 +240,11 @@ void heap_sort(InstrumentedArray& array) {
     if (size > 0) {
         array.mark_sorted(0);
     }
+    return std::move(array.values);
 }
 
-void shell_sort(InstrumentedArray& array) {
+std::vector<int> shell_sort(std::vector<int> unsorted) {
+    InstrumentedArray array(std::move(unsorted));
     const int size = static_cast<int>(array.values.size());
     for (int gap = size / 2; gap > 0; gap /= 2) {
         for (int index = gap; index < size; ++index) {
@@ -232,11 +259,13 @@ void shell_sort(InstrumentedArray& array) {
         }
     }
     array.mark_range_sorted(0, size - 1);
+    return std::move(array.values);
 }
 
-void counting_sort(InstrumentedArray& array) {
+std::vector<int> counting_sort(std::vector<int> unsorted) {
+    InstrumentedArray array(std::move(unsorted));
     if (array.values.empty()) {
-        return;
+        return std::move(array.values);
     }
     const auto bounds = std::minmax_element(array.values.begin(), array.values.end());
     const int minimum = *bounds.first;
@@ -258,9 +287,11 @@ void counting_sort(InstrumentedArray& array) {
             array.mark_sorted(index++);
         }
     }
+    return std::move(array.values);
 }
 
-void radix_sort(InstrumentedArray& array) {
+std::vector<int> radix_sort(std::vector<int> unsorted) {
+    InstrumentedArray array(std::move(unsorted));
     std::vector<int> output(array.values.size());
     for (unsigned shift = 0; shift < 32; shift += 8) {
         std::size_t counts[256] = {};
@@ -281,9 +312,10 @@ void radix_sort(InstrumentedArray& array) {
         }
     }
     array.mark_range_sorted(0, static_cast<int>(array.values.size()) - 1);
+    return std::move(array.values);
 }
 
-using SortFunction = void (*)(InstrumentedArray&);
+using SortFunction = std::vector<int> (*)(std::vector<int>);
 
 const std::map<std::string, SortFunction>& algorithms() {
     static const std::map<std::string, SortFunction> registered = {
@@ -316,10 +348,11 @@ SortResult run_sort(const std::string& algorithm, const std::vector<int>& input)
         throw std::invalid_argument("Unknown sorting algorithm: " + algorithm);
     }
 
-    InstrumentedArray array(input);
-    found->second(array);
-    array.complete();
-    return {std::move(array.values), std::move(array.operations)};
+    SortResult result;
+    TraceScope trace_scope(result.operations);
+    result.values = found->second(input);
+    record_operation(OperationType::Complete, -1, -1, 0);
+    return result;
 }
 
 }

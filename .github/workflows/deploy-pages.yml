@@ -18,25 +18,33 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
-      - name: Build WebAssembly site
+      - name: Build C++ toolchains and site
         shell: bash
         run: |
+          python scripts/prepare_toolchain.py
+          npm install --no-audit --no-fund
           git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
           "$RUNNER_TEMP/emsdk/emsdk" install 3.1.64
           "$RUNNER_TEMP/emsdk/emsdk" activate 3.1.64
           source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
           emcmake cmake -S "$GITHUB_WORKSPACE" -B "$RUNNER_TEMP/build-wasm" -G Ninja
           cmake --build "$RUNNER_TEMP/build-wasm" --parallel
-          test -s "$GITHUB_WORKSPACE/web/build-wasm/sort_core.js"
-          test -s "$GITHUB_WORKSPACE/web/build-wasm/sort_core.wasm"
+          test -s "$GITHUB_WORKSPACE/web/public/build-wasm/sort_core.js"
+          test -s "$GITHUB_WORKSPACE/web/public/build-wasm/sort_core.wasm"
+          npm run build
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: web
+          path: web/dist
 
   deploy:
     environment:

@@ -1,3 +1,12 @@
+import {
+  compileCustom,
+  createCodeEditor,
+  DEFAULT_CUSTOM_CODE,
+  getEditorCode,
+  runCustom,
+  setEditorCode,
+} from "./custom-algorithm.js";
+
 const algorithms = [
   { id: "bubble", name: "Bubble Sort", description: "Repeatedly swaps neighboring values that are out of order.", best: "O(n)", average: "O(n²)", worst: "O(n²)", space: "O(1)", stability: "Stable · In-place" },
   { id: "selection", name: "Selection Sort", description: "Selects the smallest remaining value for each position.", best: "O(n²)", average: "O(n²)", worst: "O(n²)", space: "O(1)", stability: "Unstable · In-place" },
@@ -17,6 +26,10 @@ const state = {
   module: null,
   timer: null,
   playbackTick: 0,
+  customAlgorithms: new Map(),
+  editingCustomId: null,
+  preparing: false,
+  compilingCustom: false,
 };
 
 const elements = {
@@ -29,7 +42,22 @@ const elements = {
   library: document.querySelector("#library"),
   empty: document.querySelector("#empty-state"),
   count: document.querySelector("#algorithm-count"),
+  play: document.querySelector("#play-button"),
+  pause: document.querySelector("#pause-button"),
+  step: document.querySelector("#step-button"),
+  reset: document.querySelector("#reset-button"),
+  customName: document.querySelector("#custom-name"),
+  customFunctionName: document.querySelector("#custom-function-name"),
+  customEditor: document.querySelector("#code-editor"),
+  compileButton: document.querySelector("#compile-button"),
+  saveCustomButton: document.querySelector("#save-custom-button"),
+  compileStatus: document.querySelector("#compile-status"),
+  compileOutput: document.querySelector("#compile-output"),
+  savedAlgorithms: document.querySelector("#saved-algorithms-list"),
 };
+
+const CUSTOM_STORAGE_KEY = "sort.customAlgorithms.v2";
+let codeEditor;
 
 function setStatus(message, kind = "") {
   elements.status.textContent = message;
@@ -50,19 +78,35 @@ async function loadWasm() {
 }
 
 function renderLibrary() {
-  elements.library.innerHTML = algorithms.map((algorithm) => {
+  elements.library.innerHTML = [...algorithms, ...state.customAlgorithms.values()].map((algorithm) => {
     const selected = state.selected.includes(algorithm.id);
+    const custom = state.customAlgorithms.has(algorithm.id);
     return `<article class="algorithm-card ${selected ? "selected" : ""}">
-      <div class="algorithm-card-top"><h3>${algorithm.name}</h3>
-        <button class="add-button" data-algorithm="${algorithm.id}" aria-label="${selected ? "Remove" : "Add"} ${algorithm.name}" title="${selected ? "Remove" : "Add"} ${algorithm.name}">${selected ? "−" : "+"}</button>
+      <div class="algorithm-card-top"><h3>${escapeHtml(algorithm.name)}</h3>
+        <button class="add-button" data-algorithm="${algorithm.id}" aria-label="${selected ? "Remove" : "Add"} ${escapeHtml(algorithm.name)}" title="${selected ? "Remove" : "Add"} ${escapeHtml(algorithm.name)}">${selected ? "−" : "+"}</button>
       </div>
-      <p>${algorithm.description}</p>
+      <p>${escapeHtml(algorithm.description)}</p>
       <div class="algorithm-meta">Best ${algorithm.best} · Avg ${algorithm.average}</div>
       <div class="algorithm-meta">Worst ${algorithm.worst} · ${algorithm.space}</div>
-      <div class="algorithm-meta">${algorithm.stability}</div>
+      <div class="algorithm-meta">${custom ? "Custom C++17 · Browser-only" : algorithm.stability}</div>
     </article>`;
   }).join("");
   elements.count.textContent = `${state.selected.length}/4`;
+}
+
+function getAlgorithm(id) {
+  return state.customAlgorithms.get(id) ||
+    algorithms.find((algorithm) => algorithm.id === id);
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#39;",
+  })[character]);
 }
 
 function renderPanel(algorithm) {
@@ -83,11 +127,11 @@ function renderPanel(algorithm) {
     : panel.active ? "Running" : panel.cursor ? "Paused" : "Ready";
   return `<article class="algorithm-panel${panelClass}" data-panel="${algorithm.id}">
     <div class="panel-heading">
-      <div class="panel-title-wrap"><h3 class="panel-name">${algorithm.name}</h3><p class="panel-complexity">Avg ${algorithm.average} · Space ${algorithm.space}</p></div>
+      <div class="panel-title-wrap"><h3 class="panel-name">${escapeHtml(algorithm.name)}</h3><p class="panel-complexity">Avg ${algorithm.average} · Space ${algorithm.space}</p></div>
       <div class="panel-actions">
-        <button class="icon-button" data-action="toggle" data-algorithm="${algorithm.id}" aria-label="${panel.active ? "Pause" : "Play"} ${algorithm.name}">${panel.active ? "Ⅱ" : "▶"}</button>
-        <button class="icon-button" data-action="step" data-algorithm="${algorithm.id}" aria-label="Step ${algorithm.name}">→</button>
-        <button class="icon-button" data-action="remove" data-algorithm="${algorithm.id}" aria-label="Remove ${algorithm.name}">×</button>
+        <button class="icon-button" data-action="toggle" data-algorithm="${algorithm.id}" aria-label="${panel.active ? "Pause" : "Play"} ${escapeHtml(algorithm.name)}">${panel.active ? "Ⅱ" : "▶"}</button>
+        <button class="icon-button" data-action="step" data-algorithm="${algorithm.id}" aria-label="Step ${escapeHtml(algorithm.name)}">→</button>
+        <button class="icon-button" data-action="remove" data-algorithm="${algorithm.id}" aria-label="Remove ${escapeHtml(algorithm.name)}">×</button>
       </div>
     </div>
     <div class="tile-board" aria-label="${algorithm.name} tile visualization">${tiles}</div>
@@ -121,13 +165,14 @@ function ordinal(position) {
 
 function renderWorkspace() {
   elements.workspace.innerHTML = state.selected
-    .map((id) => renderPanel(algorithms.find((algorithm) => algorithm.id === id)))
+    .map((id) => renderPanel(getAlgorithm(id)))
     .join("");
   elements.empty.hidden = state.selected.length !== 0;
   elements.count.textContent = `${state.selected.length}/4`;
 }
 
 function addAlgorithm(id) {
+  if (!getAlgorithm(id)) return;
   let changed = false;
   if (state.selected.includes(id)) {
     state.selected = state.selected.filter((selected) => selected !== id);
@@ -146,6 +191,217 @@ function addAlgorithm(id) {
   }
   renderLibrary();
   renderWorkspace();
+  renderSavedAlgorithms();
+}
+
+function renderSavedAlgorithms() {
+  elements.savedAlgorithms.innerHTML = [...state.customAlgorithms.values()].map((algorithm) =>
+    `<div class="saved-algorithm">
+      <span>${escapeHtml(algorithm.name)}</span>
+      <div>
+        <button class="saved-action" data-saved-action="load" data-algorithm="${algorithm.id}">Edit</button>
+        <button class="saved-action" data-saved-action="delete" data-algorithm="${algorithm.id}" aria-label="Delete ${escapeHtml(algorithm.name)}">Delete</button>
+      </div>
+    </div>`,
+  ).join("") || '<p class="saved-empty">Saved algorithms stay in this browser.</p>';
+}
+
+function validateCustomName() {
+  const name = elements.customName.value.trim();
+  if (!name || name.length > 32) {
+    throw new Error("Enter an algorithm name between 1 and 32 characters.");
+  }
+  return name;
+}
+
+function validateCustomFunctionName() {
+  const functionName = elements.customFunctionName.value.trim();
+  if (!/^[A-Za-z_][A-Za-z0-9_]{0,31}$/.test(functionName)) {
+    throw new Error("Use a C++ function name with letters, digits, or underscores; it cannot start with a digit.");
+  }
+  return functionName;
+}
+
+function showCompileStatus(message, kind = "") {
+  elements.compileStatus.textContent = message;
+  elements.compileStatus.className = `compile-status ${kind}`;
+}
+
+function persistCustomAlgorithms() {
+  try {
+    localStorage.setItem(CUSTOM_STORAGE_KEY, JSON.stringify(
+      [...state.customAlgorithms.values()].map(
+        ({ id, name, functionName, code }) => ({ id, name, functionName, code }),
+      ),
+    ));
+    return true;
+  } catch (error) {
+    showCompileStatus(`Could not save in this browser: ${error.message}`, "error");
+    return false;
+  }
+}
+
+function loadCustomAlgorithms() {
+  try {
+    const stored = localStorage.getItem(CUSTOM_STORAGE_KEY);
+    if (!stored) return;
+    const saved = JSON.parse(stored);
+    if (!Array.isArray(saved) || saved.length > 20) {
+      throw new Error("Saved algorithm data has an invalid format.");
+    }
+    for (const item of saved) {
+      if (!item || typeof item.id !== "string" ||
+          !/^custom-[a-f0-9-]{36}$/.test(item.id) ||
+          typeof item.name !== "string" || !item.name.trim() ||
+          item.name.length > 32 || typeof item.functionName !== "string" ||
+          !/^[A-Za-z_][A-Za-z0-9_]{0,31}$/.test(item.functionName) ||
+          typeof item.code !== "string" ||
+          item.code.length > 32768) {
+        throw new Error("A saved algorithm has invalid data.");
+      }
+      state.customAlgorithms.set(item.id, {
+        ...item,
+        wasm: null,
+        description: "A sorting algorithm written in C++17.",
+        best: "User-defined",
+        average: "Trace-based",
+        worst: "User-defined",
+        space: "Runtime-limited",
+      });
+    }
+  } catch (error) {
+    showCompileStatus(`Could not load saved algorithms: ${error.message}`, "error");
+  }
+}
+
+function updateCustomAlgorithm(algorithm) {
+  stopPlayback();
+  state.playbackTick = 0;
+  state.customAlgorithms.set(algorithm.id, algorithm);
+  if (state.selected.includes(algorithm.id)) {
+    for (const id of state.selected) state.panels.set(id, newPanel());
+  } else if (state.selected.length < 4) {
+    state.selected.push(algorithm.id);
+    state.panels.set(algorithm.id, newPanel());
+  }
+  renderLibrary();
+  renderWorkspace();
+  renderSavedAlgorithms();
+  return persistCustomAlgorithms();
+}
+
+function saveCustomCode() {
+  const name = validateCustomName();
+  const functionName = validateCustomFunctionName();
+  const code = getEditorCode(codeEditor);
+  if (!code.trim() || code.length > 32768) {
+    throw new Error("Enter a sorting algorithm under 32 KB.");
+  }
+  const id = state.editingCustomId || `custom-${crypto.randomUUID()}`;
+  const previous = state.customAlgorithms.get(id);
+  const saved = updateCustomAlgorithm({
+    id,
+    name,
+    functionName,
+    code,
+    wasm: previous?.code === code && previous.functionName === functionName
+      ? previous.wasm
+      : null,
+    description: "A sorting algorithm written in C++17.",
+    best: "User-defined",
+    average: "Trace-based",
+    worst: "User-defined",
+    space: "Runtime-limited",
+  });
+  state.editingCustomId = id;
+  if (saved) showCompileStatus("Code saved in this browser.", "ready");
+}
+
+function validateSortedResult(result, input) {
+  if (!Array.isArray(result.values) || result.values.length !== input.length ||
+      !Array.isArray(result.operations)) {
+    throw new Error("The algorithm returned an invalid result.");
+  }
+  const expected = [...input].sort((first, second) => first - second);
+  const actual = [...result.values].sort((first, second) => first - second);
+  if (actual.some((value, index) => value !== expected[index]) ||
+      result.values.some((value, index) => index > 0 && result.values[index - 1] > value)) {
+    throw new Error("The algorithm did not produce a sorted permutation of the input.");
+  }
+}
+
+async function compileAndAddCustom() {
+  if (state.preparing || state.compilingCustom) return;
+  const name = validateCustomName();
+  const functionName = validateCustomFunctionName();
+  const code = getEditorCode(codeEditor);
+  if (!code.trim() || code.length > 32768) {
+    throw new Error("Enter a sorting algorithm under 32 KB.");
+  }
+  state.compilingCustom = true;
+  syncInteractionLock();
+  try {
+    const compiled = await compileCustom(code, functionName, (message) => showCompileStatus(message));
+    const test = await runCustom(compiled.wasm, state.initial);
+    validateSortedResult(test, state.initial);
+    const id = state.editingCustomId || `custom-${crypto.randomUUID()}`;
+    const saved = updateCustomAlgorithm({
+      id,
+      name,
+      functionName,
+      code,
+      wasm: compiled.wasm,
+      description: "A sorting algorithm written in C++17.",
+      best: "User-defined",
+      average: "Trace-based",
+      worst: "User-defined",
+      space: "Runtime-limited",
+    });
+    state.editingCustomId = id;
+    elements.compileOutput.textContent = [
+      compiled.diagnostics.trim(),
+      test.stdout.trim(),
+      test.stderr.trim(),
+      `Compiled and verified on ${state.initial.length} values.`,
+    ].filter(Boolean).join("\n");
+    if (saved) {
+      showCompileStatus(
+        state.selected.includes(id)
+          ? "Compiled and added to your comparison."
+          : "Compiled and saved to the library; the comparison is full.",
+        "ready",
+      );
+    }
+  } finally {
+    state.compilingCustom = false;
+    syncInteractionLock();
+  }
+}
+
+function loadCustomAlgorithm(id) {
+  const algorithm = state.customAlgorithms.get(id);
+  if (!algorithm) return;
+  state.editingCustomId = id;
+  elements.customName.value = algorithm.name;
+  elements.customFunctionName.value = algorithm.functionName;
+  setEditorCode(codeEditor, algorithm.code);
+  elements.compileOutput.textContent = "Edit the code and compile it to update this algorithm.";
+  showCompileStatus("Loaded saved code.");
+  elements.customName.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function deleteCustomAlgorithm(id) {
+  if (!state.customAlgorithms.delete(id)) return;
+  state.selected = state.selected.filter((selected) => selected !== id);
+  state.panels.delete(id);
+  if (state.editingCustomId === id) state.editingCustomId = null;
+  stopPlayback();
+  state.playbackTick = 0;
+  for (const selected of state.selected) state.panels.set(selected, newPanel());
+  persistCustomAlgorithms();
+  renderLibrary();
+  renderWorkspace();
+  renderSavedAlgorithms();
 }
 
 function newPanel() {
@@ -188,17 +444,56 @@ function makeTrace(algorithmId) {
   }
 }
 
-function prepareTraces() {
+async function makeCustomTrace(algorithm) {
+  if (!algorithm.wasm) {
+    showCompileStatus("Loading compiler and compiling saved code…");
+    const compiled = await compileCustom(
+      algorithm.code,
+      algorithm.functionName,
+      showCompileStatus,
+    );
+    algorithm.wasm = compiled.wasm;
+  }
+  showCompileStatus(`Running ${algorithm.name}…`);
+  const result = await runCustom(algorithm.wasm, state.initial);
+  validateSortedResult(result, state.initial);
+  const output = [result.stdout.trim(), result.stderr.trim()].filter(Boolean).join("\n");
+  if (output) elements.compileOutput.textContent = output;
+  showCompileStatus(`${algorithm.name} passed on ${state.initial.length} values.`, "ready");
+  return result.operations;
+}
+
+function syncInteractionLock() {
+  const locked = state.preparing || state.compilingCustom;
+  document.querySelectorAll(
+    ".controls button, .controls input, #library button, #workspace button, " +
+    "#custom-name, #custom-function-name, #compile-button, #save-custom-button, " +
+    "#saved-algorithms-list button",
+  ).forEach((control) => { control.disabled = locked; });
+  if (codeEditor) codeEditor.contentDOM.contentEditable = String(!locked);
+}
+
+function setPreparing(preparing) {
+  state.preparing = preparing;
+  syncInteractionLock();
+}
+
+async function prepareTraces() {
   if (!state.module) {
     setStatus("Build WebAssembly before starting a race.", "error");
     return false;
   }
+  if (state.preparing) return false;
+  setPreparing(true);
   try {
     stopPlayback();
     state.playbackTick = 0;
     for (const id of state.selected) {
       const panel = state.panels.get(id);
-      panel.trace = makeTrace(id);
+      const algorithm = getAlgorithm(id);
+      panel.trace = state.customAlgorithms.has(id)
+        ? await makeCustomTrace(algorithm)
+        : makeTrace(id);
       panel.values = [...state.initial];
       panel.cursor = 0;
       panel.comparisons = 0;
@@ -213,7 +508,10 @@ function prepareTraces() {
     return true;
   } catch (error) {
     setStatus(`Could not create trace: ${error.message}`, "error");
+    elements.compileOutput.textContent = error.message;
     return false;
+  } finally {
+    setPreparing(false);
   }
 }
 
@@ -309,12 +607,7 @@ function updateDataset(values) {
   renderWorkspace();
 }
 
-document.querySelector("#library").addEventListener("click", (event) => {
-  const button = event.target.closest("[data-algorithm]");
-  if (button) addAlgorithm(button.dataset.algorithm);
-});
-
-document.querySelector("#workspace").addEventListener("click", (event) => {
+document.querySelector("#workspace").addEventListener("click", async (event) => {
   const button = event.target.closest("[data-action]");
   if (!button) return;
   const panel = state.panels.get(button.dataset.algorithm);
@@ -323,9 +616,9 @@ document.querySelector("#workspace").addEventListener("click", (event) => {
     addAlgorithm(button.dataset.algorithm);
   } else if (button.dataset.action === "step") {
     if (panel.done && [...state.panels.values()].every((candidate) => candidate.done)) {
-      if (!prepareTraces()) return;
+      if (!await prepareTraces()) return;
     }
-    if (!panel.trace.length && !prepareTraces()) return;
+    if (!panel.trace.length && !await prepareTraces()) return;
     panel.active = false;
     if (!panel.done) {
       state.playbackTick += 1;
@@ -334,9 +627,9 @@ document.querySelector("#workspace").addEventListener("click", (event) => {
     renderWorkspace();
   } else if (button.dataset.action === "toggle") {
     if (panel.done && [...state.panels.values()].every((candidate) => candidate.done)) {
-      if (!prepareTraces()) return;
+      if (!await prepareTraces()) return;
     }
-    if (!panel.trace.length && !prepareTraces()) return;
+    if (!panel.trace.length && !await prepareTraces()) return;
     panel.active = !panel.active && !panel.done;
     renderWorkspace();
     ensurePlayback();
@@ -367,7 +660,39 @@ document.querySelector("#shuffle-button").addEventListener("click", () => {
   setStatus(state.module ? "C++ WebAssembly ready" : "Build WebAssembly to run algorithms.", state.module ? "ready" : "error");
 });
 
-document.querySelector("#play-button").addEventListener("click", () => {
+elements.library.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-algorithm]");
+  if (button) addAlgorithm(button.dataset.algorithm);
+});
+
+elements.savedAlgorithms.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-saved-action]");
+  if (!button) return;
+  if (button.dataset.savedAction === "load") {
+    loadCustomAlgorithm(button.dataset.algorithm);
+  } else if (button.dataset.savedAction === "delete") {
+    deleteCustomAlgorithm(button.dataset.algorithm);
+  }
+});
+
+elements.compileButton.addEventListener("click", async () => {
+  try {
+    await compileAndAddCustom();
+  } catch (error) {
+    showCompileStatus(error.message, "error");
+    elements.compileOutput.textContent = error.message;
+  }
+});
+
+elements.saveCustomButton.addEventListener("click", () => {
+  try {
+    saveCustomCode();
+  } catch (error) {
+    showCompileStatus(error.message, "error");
+  }
+});
+
+document.querySelector("#play-button").addEventListener("click", async () => {
   if (!state.selected.length) {
     setStatus("Add an algorithm before starting a race.", "error");
     return;
@@ -375,7 +700,7 @@ document.querySelector("#play-button").addEventListener("click", () => {
   const panels = [...state.panels.values()];
   if (panels.every((panel) => panel.done) ||
       panels.some((panel) => panel.trace.length === 0)) {
-    if (!prepareTraces()) return;
+    if (!await prepareTraces()) return;
   }
   for (const panel of state.panels.values()) panel.active = !panel.done;
   renderWorkspace();
@@ -388,7 +713,7 @@ document.querySelector("#pause-button").addEventListener("click", () => {
   renderWorkspace();
 });
 
-document.querySelector("#step-button").addEventListener("click", () => {
+document.querySelector("#step-button").addEventListener("click", async () => {
   if (!state.selected.length) {
     setStatus("Add an algorithm before stepping.", "error");
     return;
@@ -396,7 +721,7 @@ document.querySelector("#step-button").addEventListener("click", () => {
   const panels = [...state.panels.values()];
   if (panels.every((panel) => panel.done) ||
       panels.some((panel) => panel.trace.length === 0)) {
-    if (!prepareTraces()) return;
+    if (!await prepareTraces()) return;
   }
   state.playbackTick += 1;
   for (const panel of state.panels.values()) {
@@ -419,7 +744,10 @@ elements.speed.addEventListener("input", () => {
   restartPlayback();
 });
 
+loadCustomAlgorithms();
+codeEditor = createCodeEditor(elements.customEditor, DEFAULT_CUSTOM_CODE);
 renderLibrary();
+renderSavedAlgorithms();
 for (const id of state.selected) state.panels.set(id, newPanel());
 renderWorkspace();
 loadWasm();

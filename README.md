@@ -10,28 +10,34 @@ finish on the same playback tick share a rank.
 
 ## Clone and run locally
 
-Install Git, CMake, Ninja, Python, and the [Emscripten SDK](https://emscripten.org/docs/getting_started/downloads.html). Clone the repository:
+Install Git, CMake, Ninja, Python 3, Node.js 24+, and the [Emscripten SDK](https://emscripten.org/docs/getting_started/downloads.html). Clone the repository:
 
 ```powershell
 git clone https://github.com/Lim-Jun-Jie/Sort.git
 cd Sort
 ```
 
-On Windows, build from an Emscripten-enabled terminal. For the default SDK location, run:
+Prepare the C++ standard library toolchain and install the web dependencies:
+
+```powershell
+python scripts/prepare_toolchain.py
+npm install
+```
+
+On Windows, build the built-in C++ WebAssembly module from an Emscripten-enabled terminal. For the default SDK location, run:
 
 ```powershell
 & $env:ComSpec /c 'call "C:\emsdk\emsdk_env.bat" && emcmake cmake -S . -B build-wasm -G Ninja && cmake --build build-wasm'
 ```
 
-If Emscripten is installed elsewhere, change `C:\emsdk\emsdk_env.bat` to the path to your SDK's `emsdk_env.bat`.
-
-Then start a local web server from the repository root and open the site:
+If Emscripten is installed elsewhere, change `C:\emsdk\emsdk_env.bat` to your SDK's `emsdk_env.bat` path. Then build and serve the site:
 
 ```powershell
-python -m http.server 8000
+npm run build
+python -m http.server --directory web/dist 8000
 ```
 
-Visit [http://localhost:8000/web/](http://localhost:8000/web/). Keep the server running while using the app; the browser needs the generated WebAssembly files and cannot load them directly from a `file://` URL.
+Open [http://localhost:8000/](http://localhost:8000/). The first custom C++ compile loads the browser compiler and standard library; visitors do not need to install or manually download tools.
 
 ## Native core tests
 
@@ -50,12 +56,19 @@ Shell, Counting, and Radix sort. Each emits `COMPARE`, `SWAP`, `WRITE`,
 `MARK_SORTED`, and `COMPLETE` operations; the visualization consumes the same
 trace format regardless of algorithm. Comparison runs use identical input
 arrays and advance one operation per active algorithm at each playback tick.
+Built-in and custom sorting functions use the same C++ interface:
+`vector<int> functionName(vector<int> unsorted)` (with `using std::vector;`).
 
-This browser-only build does not compile or execute user-submitted C++.
-Compiling arbitrary code safely requires a separately isolated compiler and
-execution service, which is intentionally not part of this WebAssembly-only
-prototype. Counting sort rejects datasets whose value range exceeds one
-million to avoid impractical allocations.
+Custom C++ functions receive a vector by value and return the sorted vector.
+Include `sort_helpers.hpp` and use `sortviz::compare`, `sortviz::swap`,
+`sortviz::write`, and `sortviz::markSorted` when you want those operations
+shown individually during playback. Regular vector operations and standard
+library algorithms work too; changes made without the helpers are visualized
+as writes when the function returns. Custom C++ is compiled to WebAssembly in
+a compiler worker and run in a separate, time-limited worker with a virtual
+WASI environment. Submitted source stays in the browser, and saved algorithms
+are stored locally. Counting sort rejects datasets whose value range exceeds
+one million to avoid impractical allocations.
 
 ## Publish on GitHub Pages
 
