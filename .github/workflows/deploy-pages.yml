@@ -1,0 +1,53 @@
+name: Deploy sorting visualizer
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Build WebAssembly site
+        shell: bash
+        run: |
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
+          "$RUNNER_TEMP/emsdk/emsdk" install 3.1.64
+          "$RUNNER_TEMP/emsdk/emsdk" activate 3.1.64
+          source "$RUNNER_TEMP/emsdk/emsdk_env.sh"
+          emcmake cmake -S "$GITHUB_WORKSPACE" -B "$RUNNER_TEMP/build-wasm" -G Ninja
+          cmake --build "$RUNNER_TEMP/build-wasm" --parallel
+          test -s "$GITHUB_WORKSPACE/web/build-wasm/sort_core.js"
+          test -s "$GITHUB_WORKSPACE/web/build-wasm/sort_core.wasm"
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
