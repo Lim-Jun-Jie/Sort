@@ -20,8 +20,13 @@ const algorithms = [
 ];
 
 const state = {
+  mode: "numbers",
   selected: ["bubble", "quick"],
   initial: [8, 3, 6, 1, 9, 2, 5, 4, 7],
+  numberInitial: [8, 3, 6, 1, 9, 2, 5, 4, 7],
+  imageSource: null,
+  imagePuzzle: null,
+  imageLoadRequest: 0,
   panels: new Map(),
   module: null,
   timer: null,
@@ -36,6 +41,17 @@ const elements = {
   status: document.querySelector("#wasm-status"),
   dataset: document.querySelector("#dataset-input"),
   size: document.querySelector("#size-input"),
+  datasetControls: document.querySelector("#dataset-controls"),
+  imageControls: document.querySelector("#image-controls"),
+  modeButtons: document.querySelectorAll(".mode-button"),
+  imageFile: document.querySelector("#image-file-input"),
+  imageRows: document.querySelector("#image-rows-input"),
+  imageColumns: document.querySelector("#image-columns-input"),
+  createImagePuzzle: document.querySelector("#create-image-puzzle-button"),
+  shuffleImagePuzzle: document.querySelector("#shuffle-image-puzzle-button"),
+  imagePreviewWrap: document.querySelector("#image-preview-wrap"),
+  imagePreview: document.querySelector("#image-preview"),
+  imageSelectionStatus: document.querySelector("#image-selection-status"),
   speed: document.querySelector("#speed-input"),
   speedOutput: document.querySelector("#speed-output"),
   workspace: document.querySelector("#workspace"),
@@ -112,10 +128,18 @@ function escapeHtml(value) {
 function renderPanel(algorithm) {
   const panel = state.panels.get(algorithm.id);
   const ranking = getRanking(panel);
+  const imagePuzzle = state.mode === "image" ? state.imagePuzzle : null;
   const tiles = panel.values.map((value, index) => {
     const classes = ["tile"];
     if (panel.highlights.includes(index)) classes.push(panel.highlightType);
     if (panel.sorted.has(index)) classes.push("sorted");
+    if (imagePuzzle) {
+      const column = value % imagePuzzle.columns;
+      const row = Math.floor(value / imagePuzzle.columns);
+      const x = column / (imagePuzzle.columns - 1) * 100;
+      const y = row / (imagePuzzle.rows - 1) * 100;
+      return `<span class="${classes.join(" ")} image-tile" role="img" aria-label="Image piece, row ${row + 1}, column ${column + 1}" style="background-position:${x}% ${y}%"></span>`;
+    }
     return `<span class="${classes.join(" ")}">${value}</span>`;
   }).join("");
   const comparisons = panel.comparisons;
@@ -125,6 +149,11 @@ function renderPanel(algorithm) {
   const panelStatus = ranking
     ? `${ordinal(ranking.position)}${ranking.tied ? " tie" : " place"} · ${panel.cursor} ops`
     : panel.active ? "Running" : panel.cursor ? "Paused" : "Ready";
+  const board = imagePuzzle
+    ? `<div class="tile-board image-puzzle-board" aria-label="${escapeHtml(algorithm.name)} image puzzle" style="--puzzle-columns:${imagePuzzle.columns};--puzzle-rows:${imagePuzzle.rows};--puzzle-image-width:${imagePuzzle.columns * 100}%;--puzzle-image-height:${imagePuzzle.rows * 100}%;aspect-ratio:${imagePuzzle.width}/${imagePuzzle.height}">${tiles}</div>`
+    : state.mode === "image"
+      ? '<div class="tile-board image-puzzle-empty">Upload an image and create a puzzle first.</div>'
+      : `<div class="tile-board" aria-label="${escapeHtml(algorithm.name)} tile visualization">${tiles}</div>`;
   return `<article class="algorithm-panel${panelClass}" data-panel="${algorithm.id}">
     <div class="panel-heading">
       <div class="panel-title-wrap"><h3 class="panel-name">${escapeHtml(algorithm.name)}</h3><p class="panel-complexity">Avg ${algorithm.average} · Space ${algorithm.space}</p></div>
@@ -134,7 +163,7 @@ function renderPanel(algorithm) {
         <button class="icon-button" data-action="remove" data-algorithm="${algorithm.id}" aria-label="Remove ${escapeHtml(algorithm.name)}">×</button>
       </div>
     </div>
-    <div class="tile-board" aria-label="${algorithm.name} tile visualization">${tiles}</div>
+    ${board}
     <div class="panel-footer">
       <div class="stats"><span>Compare <strong>${comparisons}</strong></span><span>Swaps <strong>${swaps}</strong></span><span>Writes <strong>${writes}</strong></span></div>
       <span class="panel-state">${panelStatus}</span>
@@ -167,6 +196,11 @@ function renderWorkspace() {
   elements.workspace.innerHTML = state.selected
     .map((id) => renderPanel(getAlgorithm(id)))
     .join("");
+  if (state.mode === "image" && state.imagePuzzle) {
+    elements.workspace.querySelectorAll(".image-puzzle-board").forEach((board) => {
+      board.style.setProperty("--puzzle-image", `url("${state.imagePuzzle.url}")`);
+    });
+  }
   elements.empty.hidden = state.selected.length !== 0;
   elements.count.textContent = `${state.selected.length}/4`;
 }
@@ -479,6 +513,10 @@ function setPreparing(preparing) {
 }
 
 async function prepareTraces() {
+  if (state.mode === "image" && !state.imagePuzzle) {
+    setStatus("Upload an image and create a puzzle first.", "error");
+    return false;
+  }
   if (!state.module) {
     setStatus("Build WebAssembly before starting a race.", "error");
     return false;
@@ -597,14 +635,133 @@ function parseDataset(value) {
   return numbers;
 }
 
-function updateDataset(values) {
-  state.initial = values;
-  elements.dataset.value = values.join(", ");
-  elements.size.value = values.length;
-  for (const [id] of state.panels) state.panels.set(id, newPanel());
+function shuffleValues(values) {
+  const shuffled = [...values];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const other = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[other]] = [shuffled[other], shuffled[index]];
+  }
+  return shuffled;
+}
+
+function setInitialValues(values) {
+  state.initial = [...values];
+  for (const id of state.selected) state.panels.set(id, newPanel());
   stopPlayback();
   state.playbackTick = 0;
   renderWorkspace();
+}
+
+function updateDataset(values) {
+  state.numberInitial = [...values];
+  elements.dataset.value = values.join(", ");
+  elements.size.value = values.length;
+  if (state.mode === "numbers") setInitialValues(values);
+}
+
+function setPuzzleMode(mode) {
+  if (mode !== "numbers" && mode !== "image") return;
+  state.mode = mode;
+  elements.datasetControls.hidden = mode !== "numbers";
+  elements.imageControls.hidden = mode !== "image";
+  elements.modeButtons.forEach((button) => {
+    const active = button.dataset.mode === mode;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  if (mode === "numbers") {
+    setInitialValues(state.numberInitial);
+    setStatus(
+      state.module ? "C++ WebAssembly ready" : "Build WebAssembly to run algorithms.",
+      state.module ? "ready" : "error",
+    );
+    return;
+  }
+  setInitialValues(state.imagePuzzle ? state.imagePuzzle.initial : []);
+  setStatus(
+    state.imagePuzzle
+      ? `Image puzzle ready: ${state.imagePuzzle.rows} × ${state.imagePuzzle.columns}.`
+      : "Upload an image and create a puzzle.",
+    state.imagePuzzle ? "ready" : "",
+  );
+}
+
+async function loadPuzzleImage(file) {
+  if (!file) return;
+  const request = ++state.imageLoadRequest;
+  elements.imageFile.value = "";
+  const allowedTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
+  if (!allowedTypes.has(file.type)) {
+    setStatus("Choose a PNG, JPEG, or WebP image.", "error");
+    return;
+  }
+  if (file.size < 1 || file.size > 10 * 1024 * 1024) {
+    setStatus("Image files must be 10 MB or smaller.", "error");
+    return;
+  }
+
+  try {
+    const bitmap = await createImageBitmap(file);
+    const { width, height } = bitmap;
+    bitmap.close();
+    if (request !== state.imageLoadRequest) return;
+    if (width < 2 || height < 2 || width > 8192 || height > 8192) {
+      throw new Error("Image dimensions must be between 2 and 8,192 pixels.");
+    }
+
+    const url = URL.createObjectURL(file);
+    if (state.imageSource) URL.revokeObjectURL(state.imageSource.url);
+    state.imageSource = { url, width, height, name: file.name };
+    state.imagePuzzle = null;
+    elements.imagePreview.src = url;
+    elements.imagePreviewWrap.hidden = false;
+    elements.imageSelectionStatus.textContent = `${file.name} · ${width} × ${height}`;
+    if (state.mode === "image") {
+      setInitialValues([]);
+      setStatus("Image loaded. Choose a grid and create the puzzle.");
+    }
+  } catch (error) {
+    if (request === state.imageLoadRequest) {
+      setStatus(`Could not load image: ${error.message}`, "error");
+    }
+  }
+}
+
+function createImagePuzzle() {
+  if (!state.imageSource) {
+    setStatus("Choose an image before creating the puzzle.", "error");
+    return;
+  }
+  const rows = Number(elements.imageRows.value);
+  const columns = Number(elements.imageColumns.value);
+  const pieceCount = rows * columns;
+  if (!Number.isInteger(rows) || rows < 2 || rows > 10 ||
+      !Number.isInteger(columns) || columns < 2 || columns > 10 ||
+      pieceCount > 100) {
+    setStatus("Choose between 2 and 10 rows and columns (up to 100 pieces).", "error");
+    return;
+  }
+  state.imagePuzzle = {
+    ...state.imageSource,
+    rows,
+    columns,
+    initial: shuffleValues(Array.from({ length: pieceCount }, (_, index) => index)),
+  };
+  setPuzzleMode("image");
+  setStatus(`Image puzzle created: ${rows} × ${columns}.`, "ready");
+}
+
+function shuffleImagePuzzle() {
+  if (!state.imagePuzzle) {
+    setStatus("Create an image puzzle before shuffling it.", "error");
+    return;
+  }
+  state.imagePuzzle.initial = shuffleValues(
+    Array.from({ length: state.imagePuzzle.rows * state.imagePuzzle.columns },
+      (_, index) => index),
+  );
+  setInitialValues(state.imagePuzzle.initial);
+  setStatus("Image puzzle shuffled.", "ready");
 }
 
 document.querySelector("#workspace").addEventListener("click", async (event) => {
@@ -645,18 +802,24 @@ document.querySelector("#apply-dataset").addEventListener("click", () => {
   }
 });
 
+elements.modeButtons.forEach((button) => {
+  button.addEventListener("click", () => setPuzzleMode(button.dataset.mode));
+});
+
+elements.imageFile.addEventListener("change", (event) => {
+  loadPuzzleImage(event.target.files?.[0]);
+});
+
+elements.createImagePuzzle.addEventListener("click", createImagePuzzle);
+elements.shuffleImagePuzzle.addEventListener("click", shuffleImagePuzzle);
+
 document.querySelector("#shuffle-button").addEventListener("click", () => {
   const size = Number(elements.size.value);
   if (!Number.isInteger(size) || size < 2 || size > 100) {
     setStatus("Choose a tile count between 2 and 100.", "error");
     return;
   }
-  const values = Array.from({ length: size }, (_, index) => index + 1);
-  for (let index = values.length - 1; index > 0; index -= 1) {
-    const other = Math.floor(Math.random() * (index + 1));
-    [values[index], values[other]] = [values[other], values[index]];
-  }
-  updateDataset(values);
+  updateDataset(shuffleValues(Array.from({ length: size }, (_, index) => index + 1)));
   setStatus(state.module ? "C++ WebAssembly ready" : "Build WebAssembly to run algorithms.", state.module ? "ready" : "error");
 });
 

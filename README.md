@@ -59,6 +59,11 @@ arrays and advance one operation per active algorithm at each playback tick.
 Built-in and custom sorting functions use the same C++ interface:
 `std::vector<int> functionName(std::vector<int> unsorted)`.
 
+The visualizer supports both number datasets and local image puzzles. Upload a
+PNG, JPEG, or WebP image, choose 2–10 rows and columns, and the same sorting
+traces will rearrange shuffled image pieces toward the original picture.
+Images are processed in the browser and are not uploaded.
+
 Custom C++ functions receive a vector by value and return the sorted vector.
 Use standard vector operations and C++ library algorithms as needed; after the
 function returns, its result is replayed as writes in the visualization.

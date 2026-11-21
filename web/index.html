@@ -29,7 +29,11 @@
         </div>
         <div class="wasm-status" id="wasm-status" role="status">Checking WebAssembly…</div>
       </div>
-      <div class="control-row">
+      <div class="puzzle-mode-switch" role="group" aria-label="Puzzle type">
+        <button class="mode-button is-active" type="button" data-mode="numbers" aria-pressed="true">Number dataset</button>
+        <button class="mode-button" type="button" data-mode="image" aria-pressed="false">Image puzzle</button>
+      </div>
+      <div class="control-row puzzle-controls" id="dataset-controls">
         <label class="dataset-control">
           <span>Dataset</span>
           <input id="dataset-input" type="text" aria-label="Custom dataset" value="8, 3, 6, 1, 9, 2, 5, 4, 7">
@@ -40,6 +44,29 @@
           <input id="size-input" type="number" min="2" max="100" value="9">
         </label>
         <button class="button button-quiet" id="shuffle-button"><span aria-hidden="true">⤨</span> Shuffle</button>
+      </div>
+      <div class="image-controls puzzle-controls" id="image-controls" hidden>
+        <div class="image-source-row">
+          <label class="image-file-control">
+            <span>Image</span>
+            <input id="image-file-input" type="file" accept="image/png,image/jpeg,image/webp">
+          </label>
+          <div class="image-preview-wrap" id="image-preview-wrap" hidden>
+            <img id="image-preview" alt="Selected image preview">
+            <span id="image-selection-status"></span>
+          </div>
+        </div>
+        <div class="image-grid-controls">
+          <label class="size-control">Rows
+            <input id="image-rows-input" type="number" min="2" max="10" value="3">
+          </label>
+          <label class="size-control">Columns
+            <input id="image-columns-input" type="number" min="2" max="10" value="3">
+          </label>
+          <button class="button button-primary" id="create-image-puzzle-button" type="button">Create puzzle</button>
+          <button class="button button-quiet" id="shuffle-image-puzzle-button" type="button">Shuffle pieces</button>
+        </div>
+        <p class="image-help">Choose 2–10 rows and columns (up to 100 pieces). Your image stays in this browser.</p>
       </div>
       <div class="playback-row">
         <div class="playback-buttons">
