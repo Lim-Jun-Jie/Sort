@@ -102,7 +102,7 @@
         </div>
         <details class="interface-help">
           <summary>How the sorting interface works</summary>
-          <p>Implement <code>vector&lt;int&gt; mySort(vector&lt;int&gt; unsorted)</code>; use the Function name field for your function's name, and return the sorted vector. Include <code>"sort_helpers.hpp"</code> for optional playback helpers: <code>sortviz::compare(unsorted, i, j)</code>, <code>sortviz::swap(unsorted, i, j)</code>, <code>sortviz::write(unsorted, i, value)</code>, and <code>sortviz::markSorted(i)</code>. These helpers show each operation during playback. You can also use regular vector operations and the C++ standard library; uninstrumented changes are shown as final writes.</p>
+          <p>Implement <code>std::vector&lt;int&gt; mySort(std::vector&lt;int&gt; unsorted)</code> and make the Function name field match. Sort the vector and return it. For example, include <code>&lt;algorithm&gt;</code> and call <code>std::sort(unsorted.begin(), unsorted.end())</code>. When your function returns, its resulting vector is replayed as writes in the visualization.</p>
         </details>
       </div>
     </aside>

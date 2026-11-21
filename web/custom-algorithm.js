@@ -2,25 +2,11 @@ import { basicSetup, EditorView } from "codemirror";
 import { cpp } from "@codemirror/lang-cpp";
 import { EditorState } from "@codemirror/state";
 
-export const DEFAULT_CUSTOM_CODE = `#include "sort_helpers.hpp"
-#include <vector>
+export const DEFAULT_CUSTOM_CODE = `#include <vector>
+#include <algorithm>
 
-using std::vector;
-
-vector<int> mySort(vector<int> unsorted) {
-    const int size = static_cast<int>(unsorted.size());
-    for (int end = size - 1; end > 0; --end) {
-        bool changed = false;
-        for (int index = 0; index < end; ++index) {
-            if (sortviz::compare(unsorted, index, index + 1) > 0) {
-                sortviz::swap(unsorted, index, index + 1);
-                changed = true;
-            }
-        }
-        sortviz::markSorted(end);
-        if (!changed) break;
-    }
-    if (size > 0) sortviz::markSorted(0);
+std::vector<int> mySort(std::vector<int> unsorted) {
+    std::sort(unsorted.begin(), unsorted.end());
     return unsorted;
 }`;
 

@@ -57,18 +57,16 @@ Shell, Counting, and Radix sort. Each emits `COMPARE`, `SWAP`, `WRITE`,
 trace format regardless of algorithm. Comparison runs use identical input
 arrays and advance one operation per active algorithm at each playback tick.
 Built-in and custom sorting functions use the same C++ interface:
-`vector<int> functionName(vector<int> unsorted)` (with `using std::vector;`).
+`std::vector<int> functionName(std::vector<int> unsorted)`.
 
 Custom C++ functions receive a vector by value and return the sorted vector.
-Include `sort_helpers.hpp` and use `sortviz::compare`, `sortviz::swap`,
-`sortviz::write`, and `sortviz::markSorted` when you want those operations
-shown individually during playback. Regular vector operations and standard
-library algorithms work too; changes made without the helpers are visualized
-as writes when the function returns. Custom C++ is compiled to WebAssembly in
-a compiler worker and run in a separate, time-limited worker with a virtual
-WASI environment. Submitted source stays in the browser, and saved algorithms
-are stored locally. Counting sort rejects datasets whose value range exceeds
-one million to avoid impractical allocations.
+Use standard vector operations and C++ library algorithms as needed; after the
+function returns, its result is replayed as writes in the visualization.
+Custom C++ is compiled to WebAssembly in a compiler worker and run in a
+separate, time-limited worker with a virtual WASI environment. Submitted
+source stays in the browser, and saved algorithms are stored locally. Counting
+sort rejects datasets whose value range exceeds one million to avoid
+impractical allocations.
 
 ## Publish on GitHub Pages
 
