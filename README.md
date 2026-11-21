@@ -1,31 +1,37 @@
 # Sort
 
+**Live site:** [Open the Sorting Algorithm Visualizer](https://lim-jun-jie.github.io/Sort/)
+
 An interactive sorting-algorithm comparison playground. Built-in algorithms
 run in a C++17 core compiled to WebAssembly; the browser replays their
 language-neutral operation traces as animated number tiles.
 Completed algorithms are ranked by playback completion order; algorithms that
 finish on the same playback tick share a rank.
 
-## Run locally
+## Clone and run locally
 
-1. Install CMake, Ninja, and the [Emscripten SDK](https://emscripten.org/docs/getting_started/downloads.html).
-2. Activate the Emscripten environment, then build from the repository root:
+Install Git, CMake, Ninja, Python, and the [Emscripten SDK](https://emscripten.org/docs/getting_started/downloads.html). Clone the repository:
 
-   ```powershell
-   emcmake cmake -S . -B build-wasm -G Ninja
-   cmake --build build-wasm
-   ```
+```powershell
+git clone https://github.com/Lim-Jun-Jie/Sort.git
+cd Sort
+```
 
-3. Start a local web server from the repository root:
+On Windows, build from an Emscripten-enabled terminal. For the default SDK location, run:
 
-   ```powershell
-   python -m http.server 8000
-   ```
+```powershell
+& $env:ComSpec /c 'call "C:\emsdk\emsdk_env.bat" && emcmake cmake -S . -B build-wasm -G Ninja && cmake --build build-wasm'
+```
 
-4. Open `http://localhost:8000/web/`.
+If Emscripten is installed elsewhere, change `C:\emsdk\emsdk_env.bat` to the path to your SDK's `emsdk_env.bat`.
 
-The page needs the generated `web/build-wasm/sort_core.js` and `web/build-wasm/sort_core.wasm`
-files, so it must be served over HTTP rather than opened as a `file://` URL.
+Then start a local web server from the repository root and open the site:
+
+```powershell
+python -m http.server 8000
+```
+
+Visit [http://localhost:8000/web/](http://localhost:8000/web/). Keep the server running while using the app; the browser needs the generated WebAssembly files and cannot load them directly from a `file://` URL.
 
 ## Native core tests
 
