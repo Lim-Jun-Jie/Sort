@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f4ef">
+  <title>Sort — Algorithm Playground</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="Sort home"><span class="brand-mark">S</span> sort<span class="brand-dot">.</span></a>
+    <span class="topbar-note">A sorting algorithm playground</span>
+    <a class="source-link" href="https://github.com/Lim-Jun-Jie/Sort#readme">About the project <span aria-hidden="true">↗</span></a>
+  </header>
+
+  <main>
+    <section class="intro">
+      <p class="eyebrow">ALGORITHM PLAYGROUND <span></span> C++17 + WEBASSEMBLY</p>
+      <h1>Same puzzle.<br><span>Different strategies.</span></h1>
+      <p class="intro-copy">Put sorting algorithms side by side and watch every comparison, swap, and move unfold.</p>
+    </section>
+
+    <section class="controls card" aria-label="Comparison controls">
+      <div class="control-heading">
+        <div>
+          <p class="section-label">YOUR PUZZLE</p>
+          <h2>Set up a race</h2>
+        </div>
+        <div class="wasm-status" id="wasm-status" role="status">Checking WebAssembly…</div>
+      </div>
+      <div class="control-row">
+        <label class="dataset-control">
+          <span>Dataset</span>
+          <input id="dataset-input" type="text" aria-label="Custom dataset" value="8, 3, 6, 1, 9, 2, 5, 4, 7">
+        </label>
+        <button class="button button-quiet" id="apply-dataset">Use values</button>
+        <label class="size-control">
+          <span>Tiles</span>
+          <input id="size-input" type="number" min="2" max="100" value="9">
+        </label>
+        <button class="button button-quiet" id="shuffle-button"><span aria-hidden="true">⤨</span> Shuffle</button>
+      </div>
+      <div class="playback-row">
+        <div class="playback-buttons">
+          <button class="button button-primary" id="play-button"><span aria-hidden="true">▶</span> Play all</button>
+          <button class="button button-quiet" id="pause-button"><span aria-hidden="true">Ⅱ</span> Pause</button>
+          <button class="button button-quiet" id="step-button">Step all <span aria-hidden="true">→</span></button>
+          <button class="button button-quiet" id="reset-button">Reset</button>
+        </div>
+        <label class="speed-control"><span>Speed</span><input id="speed-input" type="range" min="1" max="30" value="8"><output id="speed-output">8 ops/s</output></label>
+      </div>
+    </section>
+
+    <section class="workspace-section">
+      <div class="section-heading">
+        <div><p class="section-label">HEAD-TO-HEAD</p><h2>Your comparison <span id="algorithm-count">0/4</span></h2></div>
+        <p>Each algorithm gets the same starting order.</p>
+      </div>
+      <div class="workspace" id="workspace"></div>
+      <div class="empty-state card" id="empty-state">
+        <div class="empty-icon" aria-hidden="true">↗</div>
+        <h3>Pick a few contenders</h3>
+        <p>Add two or more algorithms from the library below to start your race.</p>
+      </div>
+    </section>
+
+    <section class="library-section">
+      <div class="section-heading">
+        <div><p class="section-label">THE LINEUP</p><h2>Algorithm library</h2></div>
+        <p>Choose up to four algorithms to compare.</p>
+      </div>
+      <div class="library-grid" id="library"></div>
+    </section>
+
+    <aside class="custom-note card">
+      <div class="custom-note-icon" aria-hidden="true">{ }</div>
+      <div><p class="section-label">CUSTOM C++ ALGORITHMS</p><h2>Bring your own strategy</h2>
+        <p>Safe compilation of submitted C++ needs an isolated compiler service. This browser-only build runs the instrumented C++ library in WebAssembly and does not execute user code.</p>
+      </div>
+      <span class="coming-soon">NOT AVAILABLE IN THIS BUILD</span>
+    </aside>
+  </main>
+
+  <footer><span class="brand">sort<span class="brand-dot">.</span></span><span>Made for curious minds.</span><a href="https://github.com/Lim-Jun-Jie/Sort">C++17 · WebAssembly · Open source</a></footer>
+
+  <script src="build-wasm/sort_core.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
