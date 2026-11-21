@@ -93,12 +93,20 @@ h2, h3, p { margin-top: 0; }
 .panel-actions { display: flex; flex: 0 0 auto; gap: 5px; }
 .icon-button { display: grid; width: 29px; height: 29px; place-items: center; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--muted); font-size: 11px; }
 .icon-button:hover { color: var(--green); border-color: #b7c8b9; }
+.rank-badge { display: flex; width: 34px; height: 34px; flex: 0 0 auto; flex-direction: column; align-items: center; justify-content: center; gap: 1px; border: 1px solid; border-radius: 8px; }
+.rank-badge svg { width: 14px; height: 14px; fill: currentColor; }
+.rank-badge svg path:last-child { fill: none; stroke: currentColor; stroke-linecap: round; stroke-width: 1.75; }
+.rank-number { font: 800 10px/1 "DM Mono", monospace; }
+.rank-gold { border-color: #e2b83f; background: #fff3c4; color: #80600c; }
+.rank-silver { border-color: #b3bdc8; background: #edf0f3; color: #566473; }
+.rank-bronze { border-color: #ca895b; background: #f7e6d9; color: #89522c; }
+.rank-other { border-color: #b7cdbb; background: #edf5ed; color: var(--green-dark); }
 .tile-board { display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: 6px; min-height: 130px; padding: 14px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background-color: #faf9f4; background-image: radial-gradient(#e9e7de .7px, transparent .7px); background-size: 12px 12px; }
 .tile { display: grid; min-width: 31px; height: 34px; place-items: center; padding: 0 5px; border: 1px solid #d6e5d8; border-radius: 7px; background: #edf5ed; color: #31593d; font: 11px "DM Mono", monospace; transition: background .12s, color .12s, transform .12s, border-color .12s; }
 .tile.comparing { border-color: #efc27e; background: #fff1d7; color: #9c5e1c; transform: translateY(-4px); }
 .tile.swapping { border-color: #e5a181; background: #fff0e8; color: #a55038; transform: translateY(3px); }
 .tile.sorted { border-color: #b8d5bd; background: #e1efe3; color: #31593d; }
-.tile-board.image-puzzle-board { display: grid; grid-template-columns: repeat(var(--puzzle-columns), minmax(0, 1fr)); grid-template-rows: repeat(var(--puzzle-rows), minmax(0, 1fr)); align-content: stretch; gap: 2px; min-height: 0; padding: 9px; background: #eeece4; background-image: none; }
+.tile-board.image-puzzle-board { display: grid; width: 100%; max-width: var(--puzzle-max-width); max-height: var(--puzzle-max-height); margin-inline: auto; grid-template-columns: repeat(var(--puzzle-columns), minmax(0, 1fr)); grid-template-rows: repeat(var(--puzzle-rows), minmax(0, 1fr)); align-content: stretch; gap: 2px; min-height: 0; padding: 9px; background: #eeece4; background-image: none; }
 .image-puzzle-board .image-tile { display: block; width: 100%; height: 100%; min-width: 0; min-height: 0; border: 1px solid rgb(255 255 255 / 55%); border-radius: 2px; padding: 0; background-color: #e7e5dc; background-image: var(--puzzle-image); background-repeat: no-repeat; background-size: var(--puzzle-image-width) var(--puzzle-image-height); transition: transform .12s, border-color .12s, box-shadow .12s; }
 .image-puzzle-board .image-tile.comparing { border-color: #f4b64b; box-shadow: inset 0 0 0 2px #f4b64b; transform: translateY(-2px); }
 .image-puzzle-board .image-tile.swapping { border-color: #e4774f; box-shadow: inset 0 0 0 2px #e4774f; transform: translateY(2px); }

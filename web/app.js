@@ -19,6 +19,8 @@ const algorithms = [
   { id: "radix", name: "Radix Sort", description: "Orders integer values one byte at a time.", best: "O(d(n + k))", average: "O(d(n + k))", worst: "O(d(n + k))", space: "O(n + k)", stability: "Stable · Out-of-place" },
 ];
 
+const MAX_IMAGE_PREVIEW_HEIGHT = 400;
+
 function createDefaultGradientSource() {
   const width = 800;
   const height = 600;
@@ -186,8 +188,21 @@ function renderPanel(algorithm) {
   const panelStatus = ranking
     ? `${ordinal(ranking.position)}${ranking.tied ? " tie" : " place"} · ${panel.cursor} ops`
     : panel.active ? "Running" : panel.cursor ? "Paused" : "Ready";
+  const rankClass = ranking?.position === 1
+    ? "rank-gold"
+    : ranking?.position === 2
+      ? "rank-silver"
+      : ranking?.position === 3
+        ? "rank-bronze"
+        : "rank-other";
+  const rankBadge = ranking
+    ? `<span class="rank-badge ${rankClass}" role="img" aria-label="${ordinal(ranking.position)} place${ranking.tied ? ", tied" : ""}" title="${ordinal(ranking.position)} place${ranking.tied ? ", tied" : ""}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 7 4 4 5-7 5 7 4-4-2 12H5L3 7Z"/><path d="M5 21h14"/></svg>
+        <span class="rank-number">${ranking.position}</span>
+      </span>`
+    : "";
   const board = imagePuzzle
-    ? `<div class="tile-board image-puzzle-board" aria-label="${escapeHtml(algorithm.name)} image puzzle" style="--puzzle-columns:${imagePuzzle.columns};--puzzle-rows:${imagePuzzle.rows};--puzzle-image-width:${imagePuzzle.columns * 100}%;--puzzle-image-height:${imagePuzzle.rows * 100}%;aspect-ratio:${imagePuzzle.width}/${imagePuzzle.height}">${tiles}</div>`
+    ? `<div class="tile-board image-puzzle-board" aria-label="${escapeHtml(algorithm.name)} image puzzle" style="--puzzle-columns:${imagePuzzle.columns};--puzzle-rows:${imagePuzzle.rows};--puzzle-image-width:${imagePuzzle.columns * 100}%;--puzzle-image-height:${imagePuzzle.rows * 100}%;--puzzle-max-width:${MAX_IMAGE_PREVIEW_HEIGHT * imagePuzzle.width / imagePuzzle.height}px;--puzzle-max-height:${MAX_IMAGE_PREVIEW_HEIGHT}px;aspect-ratio:${imagePuzzle.width}/${imagePuzzle.height}">${tiles}</div>`
     : state.mode === "image"
       ? '<div class="tile-board image-puzzle-empty">Upload an image and create a puzzle first.</div>'
       : `<div class="tile-board" aria-label="${escapeHtml(algorithm.name)} tile visualization">${tiles}</div>`;
@@ -198,6 +213,7 @@ function renderPanel(algorithm) {
         <button class="icon-button" data-action="toggle" data-algorithm="${algorithm.id}" aria-label="${panel.active ? "Pause" : "Play"} ${escapeHtml(algorithm.name)}">${panel.active ? "Ⅱ" : "▶"}</button>
         <button class="icon-button" data-action="step" data-algorithm="${algorithm.id}" aria-label="Step ${escapeHtml(algorithm.name)}">→</button>
         <button class="icon-button" data-action="remove" data-algorithm="${algorithm.id}" aria-label="Remove ${escapeHtml(algorithm.name)}">×</button>
+        ${rankBadge}
       </div>
     </div>
     ${board}
